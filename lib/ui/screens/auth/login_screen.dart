@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:tm_getx/data/models/login_model.dart';
 import 'package:tm_getx/data/models/network_response.dart';
 import 'package:tm_getx/data/services/network_caller.dart';
@@ -6,6 +7,7 @@ import 'package:tm_getx/data/utils/urls.dart';
 import 'package:tm_getx/ui/screens/bottom_nav_base_screen.dart';
 import 'package:tm_getx/ui/screens/email_verfication_screen.dart';
 import 'package:tm_getx/ui/screens/auth/signup_screen.dart';
+import 'package:tm_getx/ui/state_managers/login_controller.dart';
 import 'package:tm_getx/ui/widgets/screen_background.dart';
 import 'package:tm_getx/data/models/auth_utility.dart';
 
@@ -20,40 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailTEController = TextEditingController();
   final TextEditingController _passwordTEController = TextEditingController();
 
-  bool _loginInProgress = false;
-
-  Future<void> login() async {
-    _loginInProgress = true;
-    if(mounted){
-      setState(() {
-
-      });
-    }
-    Map<String, dynamic> requestBody = {
-      "email": _emailTEController.text.trim(),
-      "password": _passwordTEController.text
-    };
-    final NetworkResponse response =
-        await NetworkCaller().postRequest(Urls.login, requestBody);
-    _loginInProgress = false;
-
-
-    if (response.isSuccess) {
-      LoginModel model = LoginModel.fromJson(response.body!);
-      await Authutility.saveUserInfo(model);
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => BottomNavScreen()),
-            (route) => false);
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Incorrect Email and Password')));
-      }
-    }
-  }
+  //final LoginController loginginController = Get.put<LoginController>(LoginController());
 
   @override
   Widget build(BuildContext context) {
@@ -92,18 +61,30 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(
                   height: 16,
                 ),
-                SizedBox(
-                  width: double.infinity,
-                  child: Visibility(
-                    visible: _loginInProgress == false,
-                    replacement: Center( child: const CircularProgressIndicator()),
-                    child: ElevatedButton(
-                        onPressed: () {
-                          login();
-                        },
-                        child: Icon(Icons.arrow_forward_ios)),
-                  ),
-                ),
+                GetBuilder<LoginController>(builder: (loginController) {
+                  return SizedBox(
+                    width: double.infinity,
+                    child: Visibility(
+                      visible: loginController.loginInProgress == false,
+                      replacement:
+                          Center(child: const CircularProgressIndicator()),
+                      child: ElevatedButton(
+                          onPressed: () {
+                            loginController
+                                .login(_emailTEController.text.trim(),
+                                    _passwordTEController.text.trim())
+                                .then((result) {
+                                  if(result==true){
+                                  Get.offAll(const BottomNavScreen());
+                            } else {
+                                    Get.snackbar('Failed', 'Login Failed! Try Again');
+                                  }
+                                });
+                          },
+                          child: Icon(Icons.arrow_forward_ios)),
+                    ),
+                  );
+                }),
                 const SizedBox(
                   height: 12,
                 ),
@@ -113,7 +94,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => EmailVerificationScreen()));
+                                builder: (context) =>
+                                    EmailVerificationScreen()));
                       },
                       child: Text(
                         'Forgot Password?',
